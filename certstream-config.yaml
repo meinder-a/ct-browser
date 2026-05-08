@@ -1,0 +1,19 @@
+webserver:
+  listen_addr: "0.0.0.0"
+  listen_port: 8080
+  lite_url: "/"
+  full_url: "/full-stream"
+  domains_only_url: "/domains-only"
+
+prometheus:
+  enabled: true
+  listen_addr: "0.0.0.0"
+  listen_port: 8080
+  metrics_url: "/metrics"
+
+general:
+  disable_default_logs: false
+  drop_old_logs: true
+  recovery:
+    enabled: true
+    ct_index_file: "/data/ct_index.json"

@@ -1,0 +1,53 @@
+services:
+  certstream:
+    image: 0rickyy0/certstream-server-go:latest
+    container_name: ct_certstream
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./certstream-config.yaml:/app/config.yaml:ro
+      - ct_state:/data
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: ct_clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ch_data:/var/lib/clickhouse
+    environment:
+      - CLICKHOUSE_PASSWORD=ctpassword123
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  app:
+    build: ./app
+    container_name: ct_app
+    ports:
+      - "8082:8080"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      - CH_HOST=clickhouse
+      - CH_PORT=9000
+      - CH_USER=default
+      - CH_PASSWORD=ctpassword123
+      - WS_URL=ws://certstream:8080/
+
+    restart: unless-stopped
+
+volumes:
+  ch_data:
+  ct_state:

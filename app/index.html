@@ -1,0 +1,336 @@
+<!doctype html>
+<html
+  lang="en"
+  class="bg-[#000] text-[#eee] font-mono selection:bg-white selection:text-black"
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CT_BROWSER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;400;800&display=swap");
+
+      body {
+        font-family: "JetBrains Mono", monospace;
+        background-color: #000;
+        background-image: radial-gradient(circle, #111 1px, transparent 1px);
+        background-size: 32px 32px;
+      }
+
+      .raw-border {
+        border: 2px solid #333;
+      }
+
+      .heavy-border {
+        border: 4px solid #fff;
+      }
+
+      .skew-hover:hover {
+        transform: skewX(-1.5deg);
+        background: #fff !important;
+        color: #000 !important;
+      }
+
+      .data-row:nth-child(even) {
+        background: #080808;
+      }
+
+      .glitch-text {
+        text-transform: uppercase;
+        letter-spacing: -0.05em;
+        font-weight: 800;
+      }
+
+      input:focus {
+        outline: none;
+        background: #fff;
+        color: #000;
+      }
+
+      input::selection {
+        background: #000;
+        color: #fff;
+      }
+
+      .pagination-link:hover {
+        background: #fff;
+        color: #000;
+        font-weight: 800;
+      }
+
+      .break-all {
+        word-break: break-all;
+      }
+
+      .iso-date {
+        font-weight: 100;
+        font-size: 0.75rem;
+        color: #888;
+      }
+
+      .cert-id {
+        font-size: 0.7rem;
+        opacity: 0.5;
+        line-height: 1;
+      }
+
+      .crt-link:hover {
+        color: #000;
+        text-decoration: underline;
+      }
+
+      /* Innovative Badges */
+      .badge {
+        font-size: 9px;
+        font-weight: 800;
+        padding: 2px 6px;
+        border: 1px solid #fff;
+        text-transform: uppercase;
+      }
+
+      .badge-validated {
+        background: #fff;
+        color: #000;
+      }
+
+      .badge-pending {
+        border: 1px dashed #555;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen p-2 md:p-6">
+    <header
+      class="flex flex-col md:flex-row justify-between items-stretch mb-12 gap-4"
+    >
+      <div class="heavy-border p-4 bg-black my-auto" role="banner">
+        <h1 class="text-4xl md:text-6xl glitch-text leading-none">
+          CT_BROWSER
+        </h1>
+        <div
+          class="flex justify-between mt-2 text-[10px]"
+          aria-label="System metadata"
+        >
+          <span
+            >VER:
+            <br />
+            <b>{{ version }}</b></span
+          >
+          <span
+            >STATE:
+            <br />
+            <b>{{ 'STREAMING' if buffer_size > 0 else 'IDLE' }}</b></span
+          >
+          <span
+            >BUF:
+            <br />
+            <b>{{ buffer_size }}<small>/</small>{{ buffer_max_size }}</b></span
+          >
+          <span title="We only store up to 3 months of certificates">
+            TOTAL:
+            <br />
+            <b>{{ total_stats[0][0] }}</b>
+          </span>
+        </div>
+      </div>
+      <div class="raw-border p-4 bg-black flex-grow md:max-w-xl">
+        <div class="text-[10px] font-bold mb-2 border-b border-[#333] pb-1">
+          TOP_ISSUERS
+        </div>
+        <div class="grid grid-cols-1 gap-1">
+          {% for issuer in top_issuers %}
+          <div class="flex justify-between text-[10px]">
+            <span class="opacity-60 truncate mr-4">{{ issuer[0] }}</span>
+            <span class="font-bold">{{ issuer[1] }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </header>
+    <main class="w-full">
+      <div class="mb-12">
+        <form action="/" method="GET" class="flex flex-col gap-2" role="search">
+          <label for="q" class="text-[10px] font-bold px-1"
+            >COMMAND: SEARCH_REGEX</label
+          >
+          <div class="flex">
+            <span
+              class="bg-white text-black px-4 flex items-center font-bold text-2xl"
+              aria-hidden="true"
+              >></span
+            >
+            <input
+              type="text"
+              id="q"
+              name="q"
+              value="{{ q }}"
+              placeholder=".*\.fr$"
+              aria-label="Search certificates by regex"
+              class="w-full bg-black border-4 border-white p-4 text-2xl font-bold"
+            />
+          </div>
+        </form>
+      </div>
+      {% if error %}
+      <div
+        class="bg-white text-black p-4 font-bold mb-12 border-l-[20px] border-black"
+        role="alert"
+      >
+        CRITICAL_FAILURE: {{ error }}
+      </div>
+      {% endif %} {% if q and results %}
+      <div class="space-y-4">
+        <div
+          class="flex justify-between items-end border-b-4 border-white pb-2"
+        >
+          <h2 class="font-extrabold text-2xl italic">
+            MATCH_RESULTS // {{ results|length }}
+          </h2>
+          <div class="text-[10px]">OFFSET: {{ (p-1)*50 }}</div>
+        </div>
+        <div class="flex flex-col">
+          {% for res in results %}
+          <div
+            class="data-row raw-border p-4 skew-hover transition-all group border-t-0 first:border-t-2"
+          >
+            <div class="flex flex-col md:flex-row justify-between gap-6">
+              <div class="flex-grow">
+                <div class="flex items-center gap-3 mb-2">
+                  <div class="text-xl font-extrabold break-all">
+                    {{ res.common_name }}
+                  </div>
+                  {% if res.common_name.startswith('*.') %}<span class="badge"
+                    >WILDCARD</span
+                  >{% endif %} {% if res.update_type == 'X509LogEntry' %}
+                  <span class="badge badge-validated">VALIDATED</span>
+                  {% else %}
+                  <span class="badge badge-pending">PRECERT</span>
+                  {% endif %}
+                </div>
+                <div
+                  class="text-[11px] font-bold text-white/60 mb-1 group-hover:text-black"
+                >
+                  ISSUER: {{ res.issuer_o }} // SOURCE: {{ res.log_name }}
+                </div>
+                <div
+                  class="cert-id mt-2 break-all group-hover:opacity-100 uppercase tracking-tighter"
+                >
+                  ID:
+                  <a
+                    href="{{ res.cert_link if res.cert_link else '#' }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="crt-link hover:underline"
+                    title="View Direct Log Source"
+                    >{{ res.cert_id }}</a
+                  >
+                </div>
+              </div>
+              <div class="md:text-right flex flex-col justify-between shrink-0">
+                <div class="space-y-1">
+                  <div class="flex justify-between md:justify-end gap-4">
+                    <span
+                      class="text-[9px] font-bold text-white/40 group-hover:text-black"
+                      >EMIT:</span
+                    >
+                    <time
+                      class="iso-date group-hover:text-black"
+                      datetime="{{ res.emitted_at.strftime('%Y-%m-%dT%H:%M:%SZ') if res.emitted_at else '' }}"
+                      >{{ res.emitted_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ") if
+                      res.emitted_at else 'NULL' }}</time
+                    >
+                  </div>
+                  <div class="flex justify-between md:justify-end gap-4">
+                    <span
+                      class="text-[9px] font-bold text-white/40 group-hover:text-black"
+                      >EXP:</span
+                    >
+                    <time
+                      class="iso-date group-hover:text-black {{ 'text-red-500 font-bold' if res.expires_at and res.expires_at < now else '' }}"
+                      datetime="{{ res.expires_at.strftime('%Y-%m-%dT%H:%M:%SZ') if res.expires_at else '' }}"
+                    >
+                      {{ res.expires_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ") if
+                      res.expires_at else 'NULL' }}
+                    </time>
+                  </div>
+                  <div class="flex justify-between md:justify-end gap-4">
+                    <span
+                      class="text-[9px] font-bold text-white/40 group-hover:text-black"
+                      >SERIAL:</span
+                    >
+                    <span
+                      class="iso-date group-hover:text-black break-all max-w-[150px] truncate"
+                      title="{{ res.serial_number }}"
+                      >{{ res.serial_number }}</span
+                    >
+                  </div>
+                </div>
+                <div
+                  class="text-[9px] font-bold opacity-30 mt-2 group-hover:text-black uppercase"
+                >
+                  ALG: {{ res.sig_alg }}
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <nav class="mt-12 flex gap-4" aria-label="Pagination">
+          {% if p > 1 %}
+          <a
+            href="/?q={{ q }}&p={{ p - 1 }}"
+            class="pagination-link heavy-border px-8 py-4 flex-grow text-center text-xl font-bold italic"
+            >BACK_</a
+          >
+          {% endif %} {% if results|length == 50 %}
+          <a
+            href="/?q={{ q }}&p={{ p + 1 }}"
+            class="pagination-link heavy-border px-8 py-4 flex-grow text-center text-xl font-bold italic"
+            >NEXT_</a
+          >
+          {% endif %}
+        </nav>
+      </div>
+      {% elif q %}
+      <div
+        class="p-20 border-4 border-dashed border-[#222] text-center italic text-[#888]"
+      >
+        VOID_RESPONSE: NO_ENTRIES_MATCH_PATTERN
+      </div>
+      {% else %}
+      <div class="mt-32 opacity-10 flex flex-col items-center">
+        <div
+          class="text-[20vw] font-extrabold tracking-tighter italic select-none"
+        >
+          READY_
+        </div>
+      </div>
+      {% endif %}
+    </main>
+    <footer
+      class="mt-24 pt-12 border-t-2 border-[#111] text-[10px] flex justify-between uppercase text-[#888]"
+    >
+      <div>
+        MADE IN 🇫🇷 //
+        <a href="https://github.com/meinder-a/ct-browser" target="_blank"
+          >OPEN_SOURCE</a
+        >
+      </div>
+      <div>
+        <a href="https://github.com/meinder-a" target="_blank">MEINDER-A</a> //
+        <a href="https://ct-browser.anthony.meinder.dev" target="_blank"
+          >CT_BROWSER</a
+        >
+      </div>
+      <div>
+        THANKS //
+        <a
+          href="https://github.com/d-Rickyy-b/certstream-server-go"
+          target="_blank"
+          >CERTSTREAM-SERVER-GO</a
+        >
+      </div>
+    </footer>
+  </body>
+</html>
